@@ -175,7 +175,7 @@ def Goto(I, X):
                         if keys not in goto.keys():
                             goto[keys] = prod_closure[keys]
                         elif prod_closure[keys] not in goto[keys]:
-                            goto[keys].append(prod_closure[keys])
+                            goto[keys].append(prod_closure[keys][0])
     return goto
 
 def items():
@@ -196,9 +196,8 @@ def items():
         if item_len==len(C) + sum(len(v) for k, v in C.items()):
             return
 
-proccesed = []
-def Action(i, a):
-    global error, proccesed
+
+def Action2(i,a):
     for heads in C['I'+str(i)]:
         for prods in C['I'+str(i)][heads]:
             for j in range(len(prods)-1):
@@ -206,7 +205,49 @@ def Action(i, a):
                     for k in range(len(C)):
                         if Goto(C['I'+str(i)], a)==C['I'+str(k)]:
                             if a in terminals:
-                                if "r" in parse_table[i][terminals.index(a)] :
+                                if parse_table[i][terminals.index(a)] == "":
+                                    parse_table[i][terminals.index(a)] = "s"+str(k)
+                                    return
+                                else:
+                                    parse_table[i][terminals.index(a)] = parse_table[i][terminals.index(a)]+"/s"+str(k)
+                                    print("ERROR: Conflict at State "+str(i)+", Symbol \'", str(terminals.index(a))+"\'")
+                                    return
+                            else:
+                                parse_table[i][len(terminals)+nonterminals.index(a)] = str(k)
+                elif (j+1 == len(prods) and prods[j+1] == ".") or (prods[j] == "." and prods[j+1] == ''):
+                    cont = 1
+                    if start in C['I'+str(i)] and AG[start][0] + ['.'] in C['I'+str(i)][start]:
+                        parse_table[i][len(terminals)] = "accept"
+                    for key in AG.keys():
+                        for gprods in AG[key]:
+                            if (key == heads and gprods == prods[:-1] and (a in terminals or a == '$')) or (key == heads and gprods == [''] and prods[-1] == ''):
+                                for terms in follow(heads):
+                                    if '$' == terms:
+                                        parse_table[i][len(terminals)] = "r"+str(cont)
+                                        return
+                                    elif parse_table[i][terminals.index(terms)] == "":
+                                        parse_table[i][terminals.index(terms)] = "r"+str(cont)
+                                        return
+                                    elif parse_table[i][terminals.index(terms)] != "r"+str(cont):
+                                        parse_table[i][terminals.index(terms)] = parse_table[i][terminals.index(terms)]+"/r"+str(cont)
+                                        print("ERROR: Conflict at State "+str(i)+", Symbol \'", str(terminals.index(terms))+"\'")
+                                        return False
+                        cont += 1
+
+
+
+
+proc = {}
+def Action(i, a):
+    global error
+    for heads in C['I'+str(i)]:
+        for prods in C['I'+str(i)][heads]:
+            for j in range(len(prods)-1):
+                if prods[j] == '.' and prods[j+1] == a:
+                    for k in range(len(C)):
+                        if Goto(C['I'+str(i)], a)==C['I'+str(k)]:
+                            if a in terminals:
+                                if "r" in parse_table[i][terminals.index(a)] and "r"+str(k) not in proc[(i,terminals.index(a))]:
                                     if error!=1:
                                         print("ERROR: Shift-Reduce Conflict at State "+str(i)+", Symbol \'", str(terminals.index(a))+"\'")
                                     error = 1
@@ -216,14 +257,19 @@ def Action(i, a):
                                         parse_table[i][terminals.index(a)] = parse_table[i][terminals.index(a)]+"/s"+str(k)
                                     elif "r"+str(k) not in parse_table[i][terminals.index(a)]:
                                         parse_table[i][terminals.index(a)] = parse_table[i][terminals.index(a)]+"/r"+str(k)
-                                   
                                     return parse_table[i][terminals.index(a)]
                                 else:
-                                    parse_table[i][terminals.index(a)] = "s"+str(k)
+                                    if (i,terminals.index(a)) in proc:
+                                        proc[(i,terminals.index(a))].append("s"+str(k))
+                                    else:
+                                        proc[(i,terminals.index(a))] = []
+                                        proc[(i,terminals.index(a))].append("s"+str(k))
+                                        parse_table[i][terminals.index(a)] = "s"+str(k)
                             else:
                                 parse_table[i][len(terminals)+nonterminals.index(a)] = str(k)
                             
                             return "s"+str(k)
+    cont = 0
     for heads in C['I'+str(i)]:
         if heads != start:
             for prods in C['I'+str(i)][heads]:
@@ -240,7 +286,7 @@ def Action(i, a):
                                         index = len(terminals)
                                     else:
                                         index = terminals.index(terms)
-                                    if "s" in parse_table[i][index]:
+                                    if "s" in parse_table[i][index] and "r"+str(k) not in proc[(i,index)]:
                                         if error!=1:
                                             print("ERROR: Shift-Reduce conflict at state "+str(i)+", Symbol \'"+str(terms)+"\'")
                                         error = 1
@@ -249,10 +295,9 @@ def Action(i, a):
                                             parse_table[i][index] = parse_table[i][index]+"/r"+str(k)
                                         elif "s"+str(k) not in parse_table[i][index]:
                                             parse_table[i][index] = parse_table[i][index]+"/s"+str(k)
-                                        
                                         return parse_table[i][index]
                                     
-                                    elif parse_table[i][index] and parse_table[i][index] != "r"+str(k) :
+                                    elif parse_table[i][index] and "r"+str(k) not in proc[(i,index)]:
                                         if error!=1:
                                             print("ERROR: Reduce-Reduce conflict at state "+str(i)+", Symbol \'"+str(terms)+"\'")
                                         error = 1
@@ -262,13 +307,19 @@ def Action(i, a):
                                         return parse_table[i][index]
 
                                     else:
+                                        if (i,index) in proc:
+                                            proc[(i,index)].append("r"+str(k))
+                                        else:
+                                            proc[(i,index)] = []
+                                            proc[(i,index)].append("r"+str(k))
                                         parse_table[i][index] = "r"+str(k)
-                                        #print(f"{k} -> {head} -> {gprods}")
                                 
-                                return "r"+str(k)
+                                if cont == len(C['I'+str(i)])-1:
+                                    return "r"+str(k)
                             
 
                             k += 1
+        cont +=1
 
     if start in C['I'+str(i)] and AG[start][0] + ['.'] in C['I'+str(i)][start]:
         parse_table[i][len(terminals)] = "accept"
@@ -374,6 +425,7 @@ def print_info():
         for j in symbols:
             if j != '':
                 Action(i, j)
+                    
 
     print("\nParsing Table:")
     print("+"+"--------+"*(len(terminals)+len(nonterminals)+1))
@@ -435,7 +487,11 @@ def process_input():
 
             print("{:^27} | ".format(inputBody), end="")
             step += 1
-            getAct = Action(st_top, curr_sym)
+            if curr_sym == '$':
+                getAct = parse_table[st_top][len(terminals)]
+            else:
+                getAct = parse_table[st_top][terminals.index(curr_sym)]
+            #getAct = Action(st_top, curr_sym)
             if "/" in getAct:
                 print("{:^30}|".format(getAct+". So conflict"))
                 break
@@ -485,7 +541,7 @@ C = {'I0':closure({start:[['.']+AG[start][0]]})}
 for X in symbols:
     I = C['I0']
 
-Goto(C['I0'], "S")
+Goto(C['I0'], "A")
 
 items()
 
