@@ -2,11 +2,18 @@ from collections import deque
 from copy import deepcopy
 from collections import defaultdict
 
+
+#   Esta función mira el first de todas las producciones de la gramática.
+
+
 def first(rules,first_dictionary, nonTerminal):
     for prod in rules[nonTerminal]:
         value = prod[0]
+        # si en la primer posición de la derivación se encuentra un terminal, agrega el mismo y deja de buscar en la derivación
         if value not in non_terminals:
             first_dictionary[nonTerminal].update(value)
+        #en el caso que la derivación comienze con un no terminal, agrega el first del mismo; pero si el no terminal deriva en la cadena vacía, entonces recorrerá la derivación hasta que se encuentre
+        #con un símbolo diferente de la cadena de la vacia, pero si al llegar al final de la producción siempre está la cadena vacía entonces esta será agregada al first.
         else:
             i=0
             cante = 0
@@ -33,6 +40,9 @@ def first(rules,first_dictionary, nonTerminal):
             
     return first_dictionary[nonTerminal]
 
+#   Esta función se encarga de sacar el fist de una cadena específica, se cumple la condición de que si la cadena empieza con un terminal, entonces el first será ese terminal, si es
+#un no terminal el first será el first de las derivaciones del no terminal, si todas las derivaciones de la cadena contienen la cadena vacía, entonces el first de la cadena también 
+#lo tendrá.
 
 def firstcadena(first_dict, string):
     first_string = set()
@@ -47,6 +57,9 @@ def firstcadena(first_dict, string):
             first_string.update(string[i])
             return first_string
 
+#   Esta función mira si la gramática es LL1, lo que hace es que mira las derivaciones de un mismo no terminal y las interseca, si la interseccion es diferente al conjunto vacío
+#entonces la gramática no será LL1.
+
 def isLL1(first_dict, rules):
     for non_term in rules.keys():
         for i in range(len(rules[non_term])): #alpha
@@ -60,9 +73,7 @@ def isLL1(first_dict, rules):
                     print( f"NO es LL1 : Conflicto entre {rules[non_term][i]} , {rules[non_term][j]}")
                     return True
 
-
-
-
+#   Esta función busca el follow de todos los no terminales. 
 
 def follow(dict_productions, follow_dictionary, nonTerminal):
 
@@ -70,6 +81,11 @@ def follow(dict_productions, follow_dictionary, nonTerminal):
         for prod in dict_productions[key]:
             for k in range(len(prod)):
                 if prod[k]== nonTerminal:
+                    
+
+#si el siguiente es un no terminal entonces se agrega el first del mismo hasta que no contenga 
+#la cadena vacia, si el siguiente es un terminal se agrega al follow ese terminal.
+
                     if k== len(prod)-1 and prod[k]!= key:
                         
                         follow_dictionary[nonTerminal].update(follow( dict_productions,follow_dictionary, key))
@@ -91,23 +107,31 @@ def follow(dict_productions, follow_dictionary, nonTerminal):
                                 follow_dictionary[nonTerminal].update(prod[i])
                                 
                             i+=1
+                    #Busca el no terminal en las derivaciones y verifica el elemento al lado del mismo, si resulta que el no terminal buscado
+                     #se encuentra en el final de la derivación entonces se agrega el follow de la key en la que se encuentra
                     elif k+1 < len(prod) and prod[k+1] not in non_terminals:
                         follow_dictionary[nonTerminal].update(prod[k+1])
 
     return follow_dictionary[nonTerminal]
 
+
+#Esta funcion genera la tabla
 def parsing_table(first_dictionary, follow_dictionary):
     first = deepcopy(first_dictionary)
     follow = deepcopy(follow_dictionary)
     table = defaultdict(list)
     flag = "NO es LL1"
+    #Se recorre cada produccion de la gramatica
     for non_term,deriv in dict_productions.items():
         for sub_deriv in deriv:
             i = 0
+            #Se guarda el simbolo inicial de la produccion
             symbol = sub_deriv[i]
+            #Si el simbolo esta en no-terminales
             if symbol in non_terminals:  
                 while i < len(sub_deriv):
                     symbol = sub_deriv[i]
+                    #Si el simbolo es un no-terminal y esta el epsilon en first, se anade la produccion a cada simbolo del first en la tabla sin el epsilon 
                     if symbol in non_terminals:
                         if "e" in first_dictionary[symbol]:
                             for ter in first[symbol]-{"e"}:
@@ -126,6 +150,7 @@ def parsing_table(first_dictionary, follow_dictionary):
                                         return flag
                             break
                     else:
+                        #Si es un terminal, solo se anade la produccion que genera a este en la tabla
                         symbol = sub_deriv[i]
                         if {non_term:sub_deriv} not in table[non_term,symbol]:
                             if len(table[non_term,symbol]) == 0:
@@ -133,6 +158,7 @@ def parsing_table(first_dictionary, follow_dictionary):
                             else:
                                 return flag
                         break
+                #Si se esta al final de la produccion, y e esta en el first, se anade que se puede ir a cada symbolo del follow con e
                 if  i == len(sub_deriv) and "e" in first_dictionary[symbol]:
                     for ter in follow[non_term]:
                         if {non_term:sub_deriv} not in table[non_term,ter]:
@@ -140,6 +166,7 @@ def parsing_table(first_dictionary, follow_dictionary):
                                 table[non_term,ter].append({non_term:sub_deriv})
                             else:
                                 return flag
+            #Si el simbolo es e, se anade la transicion a cada symbolo del follow, con e
             elif symbol == 'e':
                 for ter in follow[non_term]:
                     if {non_term:'e'} not in table[non_term,ter]:
@@ -147,6 +174,7 @@ def parsing_table(first_dictionary, follow_dictionary):
                             table[non_term,ter].append({non_term:'e'})
                         else:
                            return flag
+            #Sino, es terminal, y se anade su produccion en la tabla
             else:
                 if {non_term:sub_deriv} not in table[non_term,symbol]:
                     if len(table[non_term,symbol]) == 0:
@@ -156,33 +184,43 @@ def parsing_table(first_dictionary, follow_dictionary):
     return table
 
 
+# Esta función verifica si se puede o no procesar una cadena con la gramática
 def parser2(ini,table):
+    #se guarda la cadena como una lista
     expr = list(map(str,input("Ingrese la cadena a evaluar : \n").split())) 
+
     while expr != []:
         print(elements)
         print("\nLa expresion ingresada es :",expr)
+        #sea agrega $ al stack y el símbolo inicial
         stack=['$']
         stack.append(ini)
         i=0
         flag = False
         while(stack and expr[i]):
+            #si el top de la pila es la cadena vacia los saca
             top = stack[len(stack)-1]
             while top == 'e':
                 stack.pop()
                 top = stack[len(stack)-1]
+
+            #si el top de la pila es el terminal que se procesa en la cadena se saca
             if top == expr[i]:
+                #si el top de la pila es $ y también lo es el elemento procesado de la cadena la cadena es válida
                 if len(stack) == 1 and stack[0] == expr[i]:
                     flag = True
                     break
                 stack.pop()
                 i += 1
             else:
+                #si el top de la pila es un terminal y no coincide con el evaluado en la cadena, la cadena no es válida
                 if top != 'e' and top in elements:
                     flag = False
                     break
                 else:
                     flag = False
 
+                    #se busca la derivacion del no terminal en la gramatica y se añade la derivación a la pila
                     for x in table:
                         if x[0] == (top,expr[i]): 
                         
@@ -281,6 +319,3 @@ if flag != True:
         t.append([key,val])
     parser2(entry,t)
     print(firstcadena(first_dictionary, ",SH"))
-
-
-    
