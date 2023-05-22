@@ -40,12 +40,27 @@ def firstcadena(first_dict, string):
         if string[i] in non_terminals:
             first_string.update(first_dict[string[i]])
             if 'e' in first_string:
-                first_string.discard()
+                first_string.discard('e')
             else:
                 return first_string
         else:
             first_string.update(string[i])
             return first_string
+
+def isLL1(first_dict, rules):
+    for non_term in rules.keys():
+        for i in range(len(rules[non_term])): #alpha
+            for j in range(i+1,len(rules[non_term])): #beta
+                set1 = set()
+                set2 = set()
+                set1.update(firstcadena(first_dict, rules[non_term][i]))
+                set2.update(firstcadena(first_dict, rules[non_term][j]))
+                inter = set1 & set2
+                if len(inter) > 0 :
+                    print( f"NO es LL1 : Conflicto entre {rules[non_term][i]} , {rules[non_term][j]}")
+                    return True
+
+
 
 
 
@@ -235,7 +250,6 @@ print("Terminals: ",end="\n")
 print(elements)
 
 follow_dictionary[entry] = {"$"}
-print(dict_productions)
 for k in non_terminals:
     first(dict_productions, first_dictionary, k)
 
@@ -245,23 +259,28 @@ print(first_dictionary)
 print("\n")
 for h in non_terminals:
     follow(dict_productions,follow_dictionary, h)
-print("Follow: ",end="\n")
-print(follow_dictionary)
-print("\n")
-table = parsing_table(first_dictionary, follow_dictionary)
-print("Table: ",end="\n")
-if table == "ERROR":
-    print(table)
-else:
-    for key in table.keys():
-        print(f"{key}:{table[key]}")
+
+#Es LL1
+flag = isLL1(first_dictionary, dict_productions)
+if flag != True:
+
+    print("Follow: ",end="\n")
+    print(follow_dictionary)
+    print("\n")
+    table = parsing_table(first_dictionary, follow_dictionary)
+    print("Table: ",end="\n")
+    if table == "NO es LL1":
+        print(table)
+    else:
+        for key in table.keys():
+            print(f"{key}:{table[key]}")
 
 
-t = []
-for key,val in table.items():
-    t.append([key,val])
-parser2(entry,t)
-print(firstcadena(first_dictionary, ",SH"))
+    t = []
+    for key,val in table.items():
+        t.append([key,val])
+    parser2(entry,t)
+    print(firstcadena(first_dictionary, ",SH"))
 
 
     
