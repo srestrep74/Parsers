@@ -4,7 +4,7 @@
 
 El presente código consiste en la implementación de dos analizadores sintáctivos en Python, el primero de ellos es LL(1) y el segundo es un analizador SLR(1).
 
-Los componentes del analizador LL(1) son:
+#### Los componentes del analizador LL(1) son:
 
 -First del conjunto de los no terminales y terminales.
 
@@ -19,7 +19,7 @@ Los componentes del analizador LL(1) son:
 (Como especificación el parser no recibe gramáticas con ningún tipo de recursión izquierda)
 
 
-Los componentes del analizador SLR(1) son:
+#### Los componentes del analizador SLR(1) son:
 
 -First y follow de la gramática.
 
