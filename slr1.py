@@ -1,4 +1,4 @@
-G = {} #productions in list form, augmented grammar
+G = {} 
 C = {}
 I = {}
 J = {}
@@ -18,7 +18,7 @@ entry = ""
 def parse_grammar():
     global G, start, terminals, nonterminals, symbols, entry
     for i in range(n):
-        x = input() #read productions from input
+        x = input() 
 
         line = " ".join(x.split())
 
@@ -28,11 +28,11 @@ def parse_grammar():
         if i == 0 :
             entry = line[:line.index("->")].strip()
         head = line[:line.index("->")].strip() 
-        prods = [l.strip().split(' ') for l in ''.join(line[line.index("->")+2:]).split('|')] #symbols to right of arrow
+        prods = [l.strip().split(' ') for l in ''.join(line[line.index("->")+2:]).split('|')] 
         
 
         if not start:
-            start = head+"'" #augmenting the grammar i.e. S'->S
+            start = head+"'" 
             AG[start] = [[head]]
             nonterminals.append(start)
 
@@ -132,23 +132,27 @@ def follow(A):
     
     return follow_l
 
-                                
-
+#Funcion para obtener Closure
 def closure(I):
+    #Se recibe la produccion a la que se le sacara el closure
     J = I 
     while True:
+        #Se recorre la(s) producciones
         item_len = len(J)+sum(len(v) for k, v in J.items())
-        for heads in list(J): #for each key in J
-            for prods in J[heads]: #for all prods of key in J
+        for heads in list(J): 
+            for prods in J[heads]: 
                 dot_pos = prods.index('.')
                 if prods == '.':
                     continue
+                #Si el punto no esta al final
                 if dot_pos+1 < len(prods): 
                     prod_after_dot = prods[dot_pos+1]
+                    #Si el siguiente es no terminal
                     if prod_after_dot in nonterminals:
+                        #Para cada produccion de ese no-terminal se agregar el punto al inicio
                         for prod in AG[prod_after_dot]: 
                             item = ["."]+prod 
-
+                            #Si el no terminal no esta en el closure actual, se agrega
                             if prod_after_dot not in J.keys():
                                 J.update({prod_after_dot:[item]})
                             elif item not in J[prod_after_dot]:
@@ -157,39 +161,45 @@ def closure(I):
         if item_len==len(J)+sum(len(v) for c, v in J.items()):
             return J
 
+#Funcion para obtener el GOTO
 def Goto(I, X):
-
+    #Esta funcion recibe el estado y el simbolo al que se puede hacer el GOTO
     goto = {}
+    #Se recorre las producciones que hay en el estado recibido
     for heads, t in I.items():
         for prods in I[heads]:
             for i in range(len(prods)-1):
-
+                #Si luego del punto esta el simbolo objetivo
                 if "."==prods[i] and X == prods[i+1]:
-
+                    #Se pasa el punto, y se crea el closure de esa transicion
                     temp_prods = prods[:]
                     temp_prods[i], temp_prods[i+1] = temp_prods[i+1], temp_prods[i]
                     prod_closure = closure({heads: [temp_prods]})
-
+                    #Luego, se recorre las producciones del closure creado
                     for keys, v in prod_closure.items():
-
+                        #Se anaden estas al goto si no estan
                         if keys not in goto.keys():
                             goto[keys] = prod_closure[keys]
                         elif prod_closure[keys] not in goto[keys]:
                             goto[keys].append(prod_closure[keys][0])
     return goto
 
-def items():
 
+#Esta funcion permite sacar todos los items (estados) del analizador
+def items():
     global C
     i = 1
+    #Se genera el estado cero mediante el closure
     C = {'I0': closure({start: [['.']+AG[start][0]]})}
-
     while True:
         item_len = len(C) + sum(len(v) for k, v in C.items())
+        #Se recorre cada item creado, y luego cada simbolo
         for I in list(C):
             for X in symbols:
+                #Si el simbolo no es epsilon, se mira si se puede hacer un GOTO entre este estado y el simbolo que se evaluando a otro
                 if '' != X :
                     if Goto(C[I], X) and Goto(C[I], X) not in C.values():
+                        #Si esto ocurre, se crea un nuevo estado
                         C['I'+str(i)] = Goto(C[I], X)
                         i += 1
 
@@ -197,55 +207,21 @@ def items():
             return
 
 
-def Action2(i,a):
-    for heads in C['I'+str(i)]:
-        for prods in C['I'+str(i)][heads]:
-            for j in range(len(prods)-1):
-                if prods[j] == '.' and prods[j+1] == a:
-                    for k in range(len(C)):
-                        if Goto(C['I'+str(i)], a)==C['I'+str(k)]:
-                            if a in terminals:
-                                if parse_table[i][terminals.index(a)] == "":
-                                    parse_table[i][terminals.index(a)] = "s"+str(k)
-                                    return
-                                else:
-                                    parse_table[i][terminals.index(a)] = parse_table[i][terminals.index(a)]+"/s"+str(k)
-                                    print("ERROR: Conflict at State "+str(i)+", Symbol \'", str(terminals.index(a))+"\'")
-                                    return
-                            else:
-                                parse_table[i][len(terminals)+nonterminals.index(a)] = str(k)
-                elif (j+1 == len(prods) and prods[j+1] == ".") or (prods[j] == "." and prods[j+1] == ''):
-                    cont = 1
-                    if start in C['I'+str(i)] and AG[start][0] + ['.'] in C['I'+str(i)][start]:
-                        parse_table[i][len(terminals)] = "accept"
-                    for key in AG.keys():
-                        for gprods in AG[key]:
-                            if (key == heads and gprods == prods[:-1] and (a in terminals or a == '$')) or (key == heads and gprods == [''] and prods[-1] == ''):
-                                for terms in follow(heads):
-                                    if '$' == terms:
-                                        parse_table[i][len(terminals)] = "r"+str(cont)
-                                        return
-                                    elif parse_table[i][terminals.index(terms)] == "":
-                                        parse_table[i][terminals.index(terms)] = "r"+str(cont)
-                                        return
-                                    elif parse_table[i][terminals.index(terms)] != "r"+str(cont):
-                                        parse_table[i][terminals.index(terms)] = parse_table[i][terminals.index(terms)]+"/r"+str(cont)
-                                        print("ERROR: Conflict at State "+str(i)+", Symbol \'", str(terminals.index(terms))+"\'")
-                                        return False
-                        cont += 1
-
-
-
-
+#Funcion para crear la tabla con los actions que puede realizar
 proc = {}
 def Action(i, a):
+    #Esta funcion recibe el estado, y el simbolo para mirar si hay accion entre estos
     global error
+    #Se recorre el estado recibido
     for heads in C['I'+str(i)]:
         for prods in C['I'+str(i)][heads]:
             for j in range(len(prods)-1):
+                #Si se encuentra, que luego del punto esta el simbolo, hay accion
                 if prods[j] == '.' and prods[j+1] == a:
                     for k in range(len(C)):
+                        #Se recorre la longitud del estado, y si en un punto existe GOTO entre este estado con el simbolo
                         if Goto(C['I'+str(i)], a)==C['I'+str(k)]:
+                            #Si el simbolo esta en terminales, puede hacer un shift
                             if a in terminals:
                                 if "r" in parse_table[i][terminals.index(a)] and "r"+str(k) not in proc[(i,terminals.index(a))]:
                                     if error!=1:
@@ -270,15 +246,18 @@ def Action(i, a):
                             
                             return "s"+str(k)
     cont = 0
+    #Si no retorno en lo anterior, puede haber un reduce, entonces se recorre el estados
     for heads in C['I'+str(i)]:
         if heads != start:
             for prods in C['I'+str(i)][heads]:
-                if prods[-1] == '.'  or prods[-1] == '':  #final item
+                #Si el punto esta de ultimo o es cadena vacia
+                if prods[-1] == '.'  or prods[-1] == '': 
                     k = 0
+                    #Se busca por la produccion en la gramatica
                     for head, tail in AG.items():
                         for gprods in AG[head]:
                             global z
-                            #print(f"{prods[-1]} , {gprods}")
+                            #Una vez se encuentra la produccion, se toman los terminos del follow del noterminal de la produccion, y se anade el reduce a estos
                             if (head == heads and (gprods == prods[:-1]) and (a in terminals or a == '$')) or (head == heads and prods[-1] == '' and gprods == ['']):
                                 for terms in follow(heads):
 
@@ -320,7 +299,7 @@ def Action(i, a):
 
                             k += 1
         cont +=1
-
+    
     if start in C['I'+str(i)] and AG[start][0] + ['.'] in C['I'+str(i)][start]:
         parse_table[i][len(terminals)] = "accept"
 
@@ -487,22 +466,25 @@ def process_input():
 
             print("{:^27} | ".format(inputBody), end="")
             step += 1
+            #Se obtiene la accion a realizar
             if curr_sym == '$':
                 getAct = parse_table[st_top][len(terminals)]
             else:
                 getAct = parse_table[st_top][terminals.index(curr_sym)]
-            #getAct = Action(st_top, curr_sym)
+
+            #Si la accion contiene / , hay un error
             if "/" in getAct:
                 print("{:^30}|".format(getAct+". So conflict"))
                 break
-
+            
+            #Si la accion contiene s, es un shift,m entonces se agrega a la pila, y se pasa de caracter en la cadena
             if "s" in getAct:
                 print("{:^29} |".format(getAct))
-                #stack.append(curr_sym)
                 stack.append(getAct[1:])
                 
                 pointer += 1
-
+            #Si es reduce, se recorre la gramatica en busqueda de la produccion, y se saca de la pila, la longitud de esa produccion
+            #Luego, se ingresa en la pila, el GOTO, entre el top y el simbolo
             elif "r" in getAct:
                 print("{:^29} |".format(getAct))
                 i = 0
@@ -517,7 +499,6 @@ def process_input():
                             for j in range(len(prods)):
                                 stack.pop()
                             state = stack[-1]
-                            #stack.append(head)
                             stack.append(parse_table[int(state)][len(terminals)+nonterminals.index(head)])
                             
                         i += 1
