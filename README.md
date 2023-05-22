@@ -2,7 +2,7 @@
 
 ## Descripción:
 
-### El presente código consiste en la implementación de dos analizadores sintáctivos en Python, el primero de ellos es LL(1) y el segundo es un analizador SLR(1).
+El presente código consiste en la implementación de dos analizadores sintáctivos en Python, el primero de ellos es LL(1) y el segundo es un analizador SLR(1).
 
 Los componentes del analizador LL(1) son:
 
